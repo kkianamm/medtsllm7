@@ -1,0 +1,79 @@
+DEBUG = false
+
+task = "anomaly_detection"
+model = "medtsllm"
+
+# For anomaly detection in this repo, these must be equal.
+history_len = 256
+pred_len = 256
+
+[setup]
+device = "cuda"
+dtype = "bfloat16"
+seed = 2026
+
+[data]
+dataset = "ECG"
+mode = "multivariate"
+cols = "all"
+step = 64
+normalize = true
+batch_size = 8
+num_workers = 4
+
+[training]
+epochs = 10
+learning_rate = 0.0001
+weight_decay = 0.00001
+loss = "mse"
+
+[tasks.anomaly_detection]
+score_metric = "mse"
+threshold = "optimize"
+normalize_by_feature = true
+normalize_moving_window = 0
+
+[datasets.ECG]
+version = "v2"
+
+[models.medtsllm]
+d_model = 256
+d_ff = 128
+n_heads = 8
+dropout = 0.1
+num_tokens = 1000
+covariate_mode = "independent"
+embedding_downsample_mode = "linear"
+
+[models.medtsllm.patching]
+patch_len = 16
+stride = 8
+
+[models.medtsllm.llm]
+enabled = true
+
+# Decoder-only model.
+# Start with gpt2 because it is small and stable.
+llm = "gpt2"
+llm_layers = 6
+load_in_4bit = false
+load_in_8bit = false
+
+[models.medtsllm.lora]
+enabled = false
+rank = 8
+alpha = 16
+dropout = 0.05
+layers = "auto"
+
+[models.medtsllm.prompting]
+dataset = true
+clip = false
+input_stats = true
+task = true
+examples = false
+input_stats_dim = "all"
+input_stats_select = "all"
+
+[logging]
+enabled = true
