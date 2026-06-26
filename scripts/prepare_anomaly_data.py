@@ -85,11 +85,16 @@ def process_record(
     anomaly_radius: int,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Output data columns:
-      time, patient_id, MLII, V1
+    Output data columns are always:
+      time, patient_id, lead_0, lead_1
 
     Output label columns:
       time, patient_id, label
+
+    Important:
+    We do NOT use MIT-BIH original lead names such as MLII, V1, V2, V5,
+    because different records have different lead names. That breaks
+    StandardScaler and dataloader feature alignment.
     """
     record_path = raw_dir / record_name
 
@@ -101,16 +106,17 @@ def process_record(
     if signal.ndim == 1:
         signal = signal[:, None]
 
+    # Force fixed number of channels.
+    # MIT-BIH usually has 2 channels.
     if signal.shape[1] == 1:
-        sig_df = pd.DataFrame(signal, columns=["lead_0"])
-    else:
-        # MIT-BIH usually has two channels.
-        # Use header channel names when available.
-        names = rec.sig_name if rec.sig_name is not None else ["lead_0", "lead_1"]
-        names = [str(x).replace(" ", "_") for x in names]
-        sig_df = pd.DataFrame(signal, columns=names[: signal.shape[1]])
+        signal = np.concatenate([signal, signal], axis=1)
+    elif signal.shape[1] > 2:
+        signal = signal[:, :2]
+
+    sig_df = pd.DataFrame(signal, columns=["lead_0", "lead_1"])
 
     n_samples = len(sig_df)
+
     labels = make_point_labels(
         n_samples=n_samples,
         ann_samples=np.asarray(ann.sample),
