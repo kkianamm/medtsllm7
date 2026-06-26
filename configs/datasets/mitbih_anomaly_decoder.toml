@@ -3,77 +3,82 @@ DEBUG = false
 task = "anomaly_detection"
 model = "medtsllm"
 
-# For anomaly detection in this repo, these must be equal.
-history_len = 256
-pred_len = 256
-
-[setup]
-device = "cuda"
-dtype = "bfloat16"
-seed = 2026
+history_len = 128
+pred_len = 128
 
 [data]
 dataset = "ECG"
 mode = "multivariate"
 cols = "all"
-step = 64
 normalize = true
-batch_size = 8
-num_workers = 4
+step = 128
 
 [training]
 epochs = 10
-learning_rate = 0.0001
-weight_decay = 0.00001
+batch_size = 16
+optimizer = "adam"
+learning_rate = 1e-4
+dropout = 0.1
 loss = "mse"
 
-[tasks.anomaly_detection]
-score_metric = "mse"
-threshold = "optimize"
-normalize_by_feature = true
-normalize_moving_window = 0
+eval_metric = "recon_mse"
+eval_metric_direction = "min"
+
+# Add these because your repo's base.py may expect them.
+patience = 5
+gradient_clip_val = 1.0
+scheduler = "none"
 
 [datasets.ECG]
 version = "v2"
 
-[models.medtsllm]
-d_model = 256
-d_ff = 128
+[tasks.anomaly_detection]
+threshold = "auto"
+score_metric = "mse"
+normalize_by_feature = true
+normalize_moving_window = 0
+
+[models.timellm]
+d_model = 32
+d_ff = 64
 n_heads = 8
-dropout = 0.1
-num_tokens = 1000
-covariate_mode = "independent"
+num_tokens = 1024
+covariate_mode = "concat"
 embedding_downsample_mode = "linear"
 
-[models.medtsllm.patching]
+[models.timellm.patching]
 patch_len = 16
 stride = 8
 
-[models.medtsllm.llm]
-enabled = true
-
-# Decoder-only model.
-# Start with gpt2 because it is small and stable.
-llm = "gpt2"
-llm_layers = 6
-load_in_4bit = false
-load_in_8bit = false
-
-[models.medtsllm.lora]
-enabled = false
-rank = 8
-alpha = 16
-dropout = 0.05
-layers = "auto"
-
-[models.medtsllm.prompting]
+[models.timellm.prompting]
 dataset = true
 clip = false
-input_stats = true
 task = true
+input_stats = false
 examples = false
 input_stats_dim = "all"
 input_stats_select = "all"
+example_pool = 1024
 
-[logging]
+[models.timellm.llm]
 enabled = true
+
+# Start with GPT-2 for debugging.
+llm = "gpt2"
+load_in_4bit = false
+load_in_8bit = false
+llm_layers = 6
+
+[setup]
+seed = 0
+
+# If CUDA works:
+device = "auto"
+dtype = "mixed"
+
+# If CUDA driver error comes back, temporarily use:
+# device = "cpu"
+# dtype = "float32"
+
+num_workers = "auto"
+logger = "print"
