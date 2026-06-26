@@ -73,4 +73,4 @@ seed = 0
 device = "auto"
 dtype = "mixed"
 num_workers = "auto"
-logger = "wandb"
+logger = "print"
